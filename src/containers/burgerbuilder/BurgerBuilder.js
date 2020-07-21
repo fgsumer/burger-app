@@ -3,6 +3,8 @@ import Burger from '../../components/Burger/Burger';
 import BuildControls from '../../components/Burger/BuildControls/BuildControls';
 import Modal from '../../components/UI/Modal';
 import OrderSummary from '../../components/Burger/OrderSummary';
+import axios from '../../axios-order';
+import Spinner from '../../components/UI/Spinner';
 
 const INGREDIENT_PRICES = {
   salad: 0.5,
@@ -22,6 +24,7 @@ class BurgerBuilder extends Component {
     totalPrice: 4,
     purchasable: false,
     purchasing: false,
+    loading: false,
   };
 
   addIngredientHandler = type => {
@@ -96,7 +99,34 @@ class BurgerBuilder extends Component {
   };
 
   purchaseContinueHandler = () => {
-    alert('You continued!! Time to pay :)');
+    this.setState({ loading: true });
+    const order = {
+      ingredients: this.state.ingredients,
+      // ın realworl app, price is calculated on the sever side
+      price: this.state.totalPrice,
+      customer: {
+        name: 'Zoe De Zummer',
+        address: {
+          street: 'test street',
+          zipCode: 12345,
+          country: 'Belgium',
+        },
+        email: 'test@test.com',
+      },
+      deliveryMethod: 'fastest',
+    };
+
+    // .json end point is specific to firebase
+    axios
+      .post('/orders.json', order)
+      .then(response => {
+        // purchasing: false because if it's true, it shows modal. but we want spinner instead of modal
+        this.setState({ loading: false, purchasing: false });
+      })
+      .catch(error => {
+        // even if there is a error, I don't want to spin. If it spins, it is a wrong alarm!! as it is not still loading
+        this.setState({ loading: false, purchasing: false });
+      });
   };
 
   render() {
@@ -104,15 +134,23 @@ class BurgerBuilder extends Component {
     for (let key in disabledInfo) {
       disabledInfo[key] = disabledInfo[key] <= 0; // gives true or false {salad : true, meat:false ...}
     }
+
+    let orderSummary = (
+      <OrderSummary
+        ingredients={this.state.ingredients}
+        purchaseCancel={this.purchaseCancelHandler}
+        purchaseContinue={this.purchaseContinueHandler}
+        price={this.state.totalPrice}
+      />
+    );
+    if (this.state.loading) {
+      orderSummary = <Spinner />;
+    } else {
+    }
     return (
       <>
         <Modal show={this.state.purchasing} modalclosed={this.purchaseCancelHandler}>
-          <OrderSummary
-            ingredients={this.state.ingredients}
-            purchaseCancel={this.purchaseCancelHandler}
-            purchaseContinue={this.purchaseContinueHandler}
-            price={this.state.totalPrice}
-          />
+          {orderSummary}
         </Modal>
         <Burger ingredients={this.state.ingredients} /> {/* Burger's image */}
         <BuildControls
